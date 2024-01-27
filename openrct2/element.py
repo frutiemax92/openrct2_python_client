@@ -9,6 +9,7 @@ class TileElementType:
     ENTRANCE = "entrance"
     LARGE_SCENERY = "large_scenery"
     BANNER = "banner"
+    NUM = 8
 
 @dataclass
 class BaseTileElement:
@@ -79,3 +80,56 @@ class TrackElement(BaseTileElement):
     is_inverted = False
     has_cable_lift = False
     is_highlighted = False
+
+@dataclass
+class SmallSceneryElement(BaseTileElement):
+    type = TileElementType.SMALL_SCENERY
+
+    direction = 0
+    object = 0
+    primary_colour = 0
+    secondary_colour = 0
+    quadrant = 0
+    age = 0
+
+@dataclass
+class WallElement(BaseTileElement):
+    type = TileElementType.WALL
+
+    direction = 0
+    object = 0
+    primary_colour = 0
+    secondary_colour = 0
+    tertiary_colour = 0
+    banner_index = None
+    slope = 0
+
+@dataclass
+class EntranceElement(BaseTileElement):
+    type = TileElementType.ENTRANCE
+
+    direction = 0
+    object = 0
+    ride = 0
+    station = 0
+    sequence = 0
+    footpath_object = None
+    footpath_surface_object = None
+
+@dataclass
+class LargeSceneryElement(BaseTileElement):
+    type = TileElementType.LARGE_SCENERY
+    
+    direction = 0
+    object = 0
+    primary_colour = 0
+    secondary_colour = 0
+    tertiary_colour = 0
+    banner_index = None
+    sequence = 0
+
+@dataclass
+class BannerElement(BaseTileElement):
+    type = TileElementType.BANNER
+    direction = 0
+    banner_index = 0

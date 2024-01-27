@@ -11,8 +11,8 @@ class OpenRCT2Client:
     def __init__(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    def connect(self, port=7860):
-        self.socket.connect(('127.0.0.1', port))
+    def connect(self, port=7860) -> int:
+        return self.socket.connect(('127.0.0.1', port))
     
     def read_all(self):
         res = bytearray()

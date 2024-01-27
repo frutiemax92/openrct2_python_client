@@ -35,7 +35,7 @@ def decode_image_rle(rle_data : bytearray, image_width : np.uint8, image_height 
 
         while ((b1 & 0x80) == 0):
             b1 = reader.read_uint8()
-            b2 = reader.read_uint16()
+            b2 = reader.read_uint8()
 
             k = 0
             while k < (b1 & 0x7F):
