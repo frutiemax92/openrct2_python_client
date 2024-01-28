@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 class ObjectType:
-    RIDE = "ride",
+    RIDE = 'ride'
     SMALL_SCENERY = "small_scenery"
     LARGE_SCENERY = "large_scenery"
     WALL = "wall"
@@ -17,3 +17,6 @@ class ObjectType:
     MUSIC = "music"
     FOOTPATH_SURFACE = "footpath_surface"
     FOOTPATH_RAILINGS = "footpath_railings"
+
+test = ObjectType.RIDE
+print(test)

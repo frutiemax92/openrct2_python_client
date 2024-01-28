@@ -1,11 +1,7 @@
 
 import socket
 import json
-
-class CommandTypes:
-    READ_TILE = 0
-    READ_IDENTIFIER_FROM_OBJECT = 1
-    READ_IMAGES_FROM_OBJECT = 2
+from openrct2.command_reader import CommandTypes
 
 class OpenRCT2Client:
     def __init__(self):
@@ -29,10 +25,7 @@ class OpenRCT2Client:
         command['type'] = 'read_tile'
         command['tile_x'] = tile_x
         command['tile_y'] = tile_y
-
-        json_command = json.dumps(command).encode()
-        self.socket.sendall(json_command)
-        return self.read_all()
+        return command
 
     def command_read_identifier_from_object(self, args):
         command = {}
@@ -41,9 +34,7 @@ class OpenRCT2Client:
         object_id, object_type = args
         command['object_id'] = object_id
         command['object_type'] = object_type
-        json_command = json.dumps(command).encode()
-        self.socket.sendall(json_command)
-        return self.read_all()
+        return command
 
     def command_read_images_from_object(self, args):
         command = {}
@@ -52,18 +43,32 @@ class OpenRCT2Client:
         object_id, object_type = args
         command['object_id'] = object_id
         command['object_type'] = object_type
+        return command
+
+    def command_get_num_objects(self, args):
+        command = {}
+
+        object_type = args
+        command['type'] = 'get_num_objects'
+        command['object_type'] = object_type
+        return command
+
+    def send_command(self, command_type, args):
+        command = None
+        if command_type == CommandTypes.READ_TILE:
+            command = self.command_read_tile(args)
+        elif command_type == CommandTypes.READ_IDENTIFIER_FROM_OBJECT:
+            command = self.command_read_identifier_from_object(args)
+        elif command_type == CommandTypes.READ_IMAGES_FROM_OBJECT:
+            command = self.command_read_images_from_object(args)
+        elif command_type == CommandTypes.GET_NUM_OBJECTS:
+            command = self.command_get_num_objects(args)
+        
+        if command == None:
+            return None
+
         json_command = json.dumps(command).encode()
         self.socket.sendall(json_command)
         return self.read_all()
-
-    def send_command(self, command_type, args):
-        res = None
-        if command_type == CommandTypes.READ_TILE:
-            res = self.command_read_tile(args)
-        elif command_type == CommandTypes.READ_IDENTIFIER_FROM_OBJECT:
-            res = self.command_read_identifier_from_object(args)
-        elif command_type == CommandTypes.READ_IMAGES_FROM_OBJECT:
-            res = self.command_read_images_from_object(args)
-        return res
 
     

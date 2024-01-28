@@ -23,6 +23,17 @@ class BaseTileElement:
     is_hidden = 0
     owner = 0
 
+    def clone(self, element):
+        self.type = element.type
+        self.base_height = element.base_height
+        self.base_z = element.base_z
+        self.clearance_height = element.clearance_height
+        self.clearance_z = element.clearance_z
+        self.occupied_quadrants = element.occupied_quadrants
+        self.is_ghost = element.is_ghost
+        self.is_hidden = element.is_hidden
+        self.owner = element.owner
+
 @dataclass
 class SurfaceElement(BaseTileElement):
     type = TileElementType.SURFACE
@@ -35,6 +46,8 @@ class SurfaceElement(BaseTileElement):
     park_fences = 0
     has_ownership = False
     has_contruction_rights = False
+
+    
 
 @dataclass
 class FootpathElement(BaseTileElement):
