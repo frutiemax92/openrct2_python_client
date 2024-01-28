@@ -1,7 +1,7 @@
 
 import socket
 import json
-from openrct2.command_reader import CommandTypes
+from openrct2.command_reader import *
 
 class OpenRCT2Client:
     def __init__(self):
@@ -12,12 +12,13 @@ class OpenRCT2Client:
     
     def read_all(self):
         res = bytearray()
-        while True:
-            recv = self.socket.recv(4096)
-            res.extend(recv)
-            if len(recv) < 4096:
-                break
-        return res.decode()
+        packet = b''
+        while not b'END' in packet:
+            packet = self.socket.recv(1024)
+            res.extend(packet)
+
+        string_result = res[:-3].decode()
+        return string_result
     
     def command_read_tile(self, args):
         tile_x, tile_y = args
@@ -53,7 +54,7 @@ class OpenRCT2Client:
         command['object_type'] = object_type
         return command
 
-    def send_command(self, command_type, args):
+    def send_command(self, command_type, args) -> CommandResult:
         command = None
         if command_type == CommandTypes.READ_TILE:
             command = self.command_read_tile(args)
@@ -67,8 +68,24 @@ class OpenRCT2Client:
         if command == None:
             return None
 
-        json_command = json.dumps(command).encode()
-        self.socket.sendall(json_command)
-        return self.read_all()
+        json_command = json.dumps(command)
+        json_command = json_command + 'END'
+        self.socket.sendall(json_command.encode())
+        
+        # receive the packet
+        data = self.read_all()
+        result = None
+
+        if command_type == CommandTypes.READ_TILE:
+            result = ReadTileResult()
+        elif command_type == CommandTypes.READ_IDENTIFIER_FROM_OBJECT:
+            result = ReadIdentifierFromObject()
+        elif command_type == CommandTypes.READ_IMAGES_FROM_OBJECT:
+            result = ReadImagesFromObjectResult()
+        elif command_type == CommandTypes.GET_NUM_OBJECTS:
+            result = GetNumObjectsResult()
+        result.parse_from_json(data)
+
+        return result
 
     

@@ -26,10 +26,16 @@ def register_image_extractor_block(client : OpenRCT2Client):
             output_path = os.path.abspath(output_folder)
             
             # first get the ride objects
-            json_result_cmd = client.send_command(CommandTypes.GET_NUM_OBJECTS, ObjectType.RIDE)
-            for j in range(num_ride_objects):
-                result_json = client.send_command(CommandTypes.READ_IMAGES_FROM_OBJECT, (j, ObjectType.RIDE))
-                print(f'result_json = {result_json}')
+            command_result = client.send_command(CommandTypes.GET_NUM_OBJECTS, ObjectType.RIDE)
+
+            if command_result == None:
+                print('error parsing the GET_NUM_OBJECTS json in extract_all_images')
+        
+            num_objects = command_result.num_objects
+            for j in range(num_objects):
+                read_images_result = client.send_command(CommandTypes.READ_IMAGES_FROM_OBJECT, (j, ObjectType.RIDE))
+            
+            print('Done extracting images')
 
         export_button.click(
             extract_all_images,

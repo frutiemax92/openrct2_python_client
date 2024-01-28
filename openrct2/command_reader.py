@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import json
-from element import *
+from openrct2.element import *
+from openrct2.pixel_data import *
 
 class CommandTypes:
     READ_TILE = 0
@@ -161,3 +162,74 @@ class ReadTileResult(CommandResult):
                 res_element = banner_element
                 
             self.elements.append(res_element)
+    
+@dataclass
+class GetNumObjectsResult(CommandResult):
+    type = 'get_num_objects'
+    object_type = 0
+    num_objects = 0
+
+    def parse_from_json(self, json_result: str):
+        json_struct = json.loads(json_result)
+        self.object_type = json_struct['object_type']
+        self.num_objects = json_struct['num_objects']
+
+@dataclass
+class ReadImagesFromObjectResult(CommandResult):
+    type = 'read_images_from_object'
+    object_id = None
+    object_type = None
+    images = []
+
+    def parse_from_json(self, json_result: str):
+        try:
+            json_struct = json.loads(json_result)
+        except json.decoder.JSONDecodeError:
+            return None
+    
+        self.object_type = json_struct['object_type']
+        self.object_id = json_struct['object_id']
+
+        json_images = json_struct['images']
+        for json_image in json_images:
+            pixel_data = None
+            pixel_data_type = json_image['type']
+
+            if pixel_data_type == 'raw':
+                pixel_data = RawPixelData()
+                pixel_data.width = json_image['width']
+                pixel_data.height = json_image['height']
+
+                if 'stride' in json_image:
+                    pixel_data.stride = json_image['stride']
+
+                # prob won't work???
+                pixel_data.data = json_image['data']
+
+            elif pixel_data_type == 'rle':
+                pixel_data = RlePixelData()
+                pixel_data.width = json_image['width']
+                pixel_data.height = json_image['height']
+
+                # same here
+                pixel_data.data = json_image['data']
+            
+            else:
+                pixel_data = PngPixelData()
+
+                if 'palette' in json_image:
+                    pixel_data.palette = json_image['palette']
+                pixel_data.data = json_image['data']
+
+            self.images.append(pixel_data)
+
+@dataclass
+class ReadIdentifierFromObject(CommandResult):
+    type = 'read_identifier_from_object'
+    object_type = None
+    path = None
+
+    def parse_from_json(self, json_result : str):
+        json_struct = json.loads(json_result)
+        self.object_type - json_struct['object_type']
+        self.path = json_struct['path']

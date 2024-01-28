@@ -17,6 +17,3 @@ class ObjectType:
     MUSIC = "music"
     FOOTPATH_SURFACE = "footpath_surface"
     FOOTPATH_RAILINGS = "footpath_railings"
-
-test = ObjectType.RIDE
-print(test)
