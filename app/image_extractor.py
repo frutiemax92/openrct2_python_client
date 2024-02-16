@@ -50,7 +50,7 @@ def register_image_extractor_block(client : OpenRCT2Client):
                     if image.type == 'rle':
                         data = decode_image_rle(image.data, image.width, image.height)
                     else:
-                        data = image.data
+                        data = np.array(image.data)
                 
                     # save the image as png
                     im = Image.fromarray(data, mode='P')
