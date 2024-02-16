@@ -25,7 +25,8 @@ def main():
         with gr.Tab("Foliage Autocompleter"):
             pass
         with gr.Tab("Utilities"):
-            register_image_extractor_block(client)
+            with gr.Tab("Images extraction"):
+                register_image_extractor_block(client)
 
     interface.launch()
 

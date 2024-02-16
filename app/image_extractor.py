@@ -15,9 +15,14 @@ FOLDER_SYMBOL = '\U0001f4c2'
 
 # inspired by kohya_ss
 def register_image_extractor_block(client : OpenRCT2Client):
-    label = gr.Label('Extract Images', scale=1, )
+    export_types = gr.CheckboxGroup(['Ride', 'Small Scenery', 'Large Scenery', 'Wall', 'Banner', 'Footpath', \
+                                     'Footpath Addition', 'Scenery Group', 'Park Entrance', 'Water', 'Terrain Surface', 'Terrain Edge', \
+                                        'Station', 'Music', 'Footpath Surface', 'Footpath Railings'], value=['Small Scenery', 'Large Scenery', 'Wall'], \
+                                            label='Object Types', interactive=True)
+
+    export_animated_objects = gr.Checkbox(value=False, label='Export Animated Objects')
     with gr.Row():
-        export_path = gr.Textbox('Export Path', interactive=True)
+        export_path = gr.Textbox('Export Path', interactive=True, label='Export Path')
         folder_button = gr.Button(FOLDER_SYMBOL)
         export_button = gr.Button('Export')
 
@@ -26,23 +31,24 @@ def register_image_extractor_block(client : OpenRCT2Client):
             outputs=export_path,
         )
 
-        def extract_all_images(output_folder : str):
-            output_path = os.path.abspath(output_folder)
-            
+        def extract_all_images_of_type(output_folder, type, start_image_index = 0) -> int:
             # first get the ride objects ids
-            command_result = client.send_command(CommandTypes.GET_NUM_OBJECTS, ObjectType.SMALL_SCENERY)
+            output_path = os.path.abspath(output_folder)
+            command_result = client.send_command(CommandTypes.GET_NUM_OBJECTS, type)
             #command_result = client.send_command(CommandTypes.READ_IDENTIFIERS_FROM_OBJECTS, ObjectType.SMALL_SCENERY)
 
             if command_result == None:
                 print('error parsing the GET_NUM_OBJECTS json in extract_all_images')
         
             num_objects = command_result.num_objects
-            image_index = 0
+            image_index = start_image_index
 
             palette = Image.open('data/screenshot.png').palette
 
             for j in range(num_objects):
-                read_images_result = client.send_command(CommandTypes.READ_IMAGES_FROM_OBJECT, (j, ObjectType.SMALL_SCENERY))
+                read_images_result = client.send_command(CommandTypes.READ_IMAGES_FROM_OBJECT, (j, type))
+                if len(read_images_result.images) > 4 and export_animated_objects.value == False:
+                    continue
 
                 # parse the images
                 for image in read_images_result.images:
@@ -63,10 +69,35 @@ def register_image_extractor_block(client : OpenRCT2Client):
                     im.save(out_image)
 
                     image_index = image_index + 1
-                
-                        
-                
-            
+            return image_index
+
+        def extract_all_images(output_folder : str):
+
+            image_index = 0
+            if 'Ride' in export_types.value:
+                image_index = extract_all_images_of_type(output_folder, ObjectType.RIDE, image_index)
+            if 'Small Scenery' in export_types.value:
+                image_index = extract_all_images_of_type(output_folder, ObjectType.SMALL_SCENERY, image_index)
+            if 'Large Scenery' in export_types.value:
+                image_index = extract_all_images_of_type(output_folder, ObjectType.LARGE_SCENERY, image_index)
+            if 'Wall' in export_types.value:
+                image_index = extract_all_images_of_type(output_folder, ObjectType.WALL, image_index)
+            if 'Banner' in export_types.value:
+                image_index = extract_all_images_of_type(output_folder, ObjectType.BANNER, image_index)
+            if 'Footpath' in export_types.value:
+                image_index = extract_all_images_of_type(output_folder, ObjectType.FOOTPATH, image_index)
+            if 'Footpath Addition' in export_types.value:
+                image_index = extract_all_images_of_type(output_folder, ObjectType.FOOTPATH_ADDITION, image_index)
+            if 'Scenery Group' in export_types.value:
+                image_index = extract_all_images_of_type(output_folder, ObjectType.SCENERY_GROUP, image_index)
+            if 'Park Entrance' in export_types.value:
+                image_index = extract_all_images_of_type(output_folder, ObjectType.PARK_ENTRANCE, image_index)
+            if 'Water' in export_types.value:
+                image_index = extract_all_images_of_type(output_folder, ObjectType.WATER, image_index)
+            if 'Terrain Surface' in export_types.value:
+                image_index = extract_all_images_of_type(output_folder, ObjectType.TERRAIN_SURFACE, image_index)
+            if 'Footpath Railings' in export_types.value:
+                image_index = extract_all_images_of_type(output_folder, ObjectType.FOOTPATH_RAILINGS, image_index)
             print('Done extracting images')
 
         export_button.click(
