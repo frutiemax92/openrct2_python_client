@@ -8,6 +8,7 @@ class CommandTypes:
     READ_IDENTIFIER_FROM_OBJECT = 1
     READ_IMAGES_FROM_OBJECT = 2
     GET_NUM_OBJECTS = 3
+    READ_IDENTIFIERS_FROM_OBJECTS = 4
 
 @dataclass
 class CommandResult:
@@ -182,6 +183,9 @@ class ReadImagesFromObjectResult(CommandResult):
     images = []
 
     def parse_from_json(self, json_result: str):
+        self.images = []
+        self.object_type = None
+        self.object_id = None
         try:
             json_struct = json.loads(json_result)
         except json.decoder.JSONDecodeError:
@@ -204,7 +208,7 @@ class ReadImagesFromObjectResult(CommandResult):
                     pixel_data.stride = json_image['stride']
 
                 # prob won't work???
-                pixel_data.data = json_image['data']
+                pixel_data.data = bytearray(json_image['data'].values())
 
             elif pixel_data_type == 'rle':
                 pixel_data = RlePixelData()
@@ -212,14 +216,14 @@ class ReadImagesFromObjectResult(CommandResult):
                 pixel_data.height = json_image['height']
 
                 # same here
-                pixel_data.data = json_image['data']
+                pixel_data.data = bytearray(json_image['data'].values())
             
             else:
                 pixel_data = PngPixelData()
 
                 if 'palette' in json_image:
                     pixel_data.palette = json_image['palette']
-                pixel_data.data = json_image['data']
+                pixel_data.data = bytearray(json_image['data'].values())
 
             self.images.append(pixel_data)
 
@@ -233,3 +237,12 @@ class ReadIdentifierFromObject(CommandResult):
         json_struct = json.loads(json_result)
         self.object_type - json_struct['object_type']
         self.path = json_struct['path']
+
+@dataclass
+class ReadIdentifiersFromObject(CommandResult):
+    type = 'read_identifiers_from_objects'
+    ids = None
+
+    def parse_from_json(self, json_result: str):
+        json_struct = json.loads(json_result)
+        self.ids = json_struct['ids']

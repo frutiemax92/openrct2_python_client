@@ -13,7 +13,7 @@ class OpenRCT2Client:
     def read_all(self):
         res = bytearray()
         packet = b''
-        while not b'END' in packet:
+        while not b'END' in res[-5:]:
             packet = self.socket.recv(1024)
             res.extend(packet)
 
@@ -34,6 +34,14 @@ class OpenRCT2Client:
         
         object_id, object_type = args
         command['object_id'] = object_id
+        command['object_type'] = object_type
+        return command
+    
+    def command_read_identifiers_from_objects(self, args):
+        command = {}
+        command['type'] = 'read_identifiers_from_objects'
+
+        object_type = args
         command['object_type'] = object_type
         return command
 
@@ -64,6 +72,8 @@ class OpenRCT2Client:
             command = self.command_read_images_from_object(args)
         elif command_type == CommandTypes.GET_NUM_OBJECTS:
             command = self.command_get_num_objects(args)
+        elif command_type == CommandTypes.READ_IDENTIFIERS_FROM_OBJECTS:
+            command = self.command_read_identifiers_from_objects(args)
         
         if command == None:
             return None
@@ -84,6 +94,8 @@ class OpenRCT2Client:
             result = ReadImagesFromObjectResult()
         elif command_type == CommandTypes.GET_NUM_OBJECTS:
             result = GetNumObjectsResult()
+        elif command_type == CommandTypes.READ_IDENTIFIERS_FROM_OBJECTS:
+            result = ReadIdentifiersFromObject()
         result.parse_from_json(data)
 
         return result

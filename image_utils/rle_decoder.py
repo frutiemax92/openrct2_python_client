@@ -6,7 +6,7 @@ class BinaryReader:
         self.offset = 0
     
     def read_uint16(self) -> np.uint16:
-        res = np.uin16()
+        res = np.uint16()
         res = np.uint16(self.data[self.offset]) + (np.uint16(self.data[self.offset + 1]) << 8)
         self.offset = self.offset + 2
         return res
