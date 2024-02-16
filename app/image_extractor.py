@@ -70,14 +70,23 @@ def register_image_extractor_block(client : OpenRCT2Client):
                 resized_images = []
                 for image in pack_images:
                     # we need to use the smallest ratio
-                    ratio_x = int(256 / image.width)
-                    ratio_y = int(512 / image.height)
+                    ratio_x = 256.0 / image.width
+                    ratio_y = 512.0 / image.height
 
                     # get the scaling ratio
                     scaling = np.minimum(ratio_x, ratio_y)
 
+                    # sometimes there are badly formed objects that exceeds the normal image size
+                    scaling = np.maximum(scaling, 1.0)
+                    
+                    new_width = float(image.width) * scaling
+                    new_width = np.round(new_width)
+
+                    new_height = float(image.height) * scaling
+                    new_height = np.round(new_height)
+
                     # scale the image
-                    resized_images.append(image.resize((image.width * scaling, image.height * scaling)))
+                    resized_images.append(image.resize((int(new_width), int(new_height))))
                 
                 # copy the 2 images side by side on a 512x512 image
                 new_image = Image.new(mode='P', size=(512, 512))
@@ -95,14 +104,26 @@ def register_image_extractor_block(client : OpenRCT2Client):
                 resized_images = []
                 for image in pack_images:
                     # we need to use the smallest ratio
-                    ratio_x = int(256 / image.width)
-                    ratio_y = int(256 / image.height)
+                    ratio_x = 256.0 / image.width
+                    ratio_y = 256.0 / image.height
 
                     # get the scaling ratio
                     scaling = np.minimum(ratio_x, ratio_y)
 
+                    # sometimes there are badly formed objects that exceeds the normal image size
+                    scaling = np.maximum(scaling, 1.0)
+
+                    new_width = float(image.width) * scaling
+                    new_width = np.round(new_width)
+
+                    new_height = float(image.height) * scaling
+                    new_height = np.round(new_height)
+
+                    #print(f'width={image.width}, height={image.height}')
+                    #print(f'new_width={new_width}, new_height={new_height}')
+
                     # scale the image
-                    resized_images.append(image.resize((image.width * scaling, image.height * scaling)))
+                    resized_images.append(image.resize((int(new_width), int(new_height))))
 
                 # copy the 4 images each in its quadrant
                 new_image = Image.new(mode='P', size=(512, 512))
@@ -118,8 +139,6 @@ def register_image_extractor_block(client : OpenRCT2Client):
 
                 out_image = os.path.join(output_folder, f'{image_index}.png')
                 new_image.save(out_image)
-
-                new_image.show()
                 image_index = image_index + 1
 
 
