@@ -14,9 +14,11 @@ from copy import copy
 FOLDER_SYMBOL = '\U0001f4c2'
 
 NUM_COLORS_IN_PALETTE = 12
-REMAP1 = [i for i in range(244, 244 + NUM_COLORS_IN_PALETTE)]
-REMAP2 = [i for i in range(202, 202 + NUM_COLORS_IN_PALETTE)]
-REMAP3 = [i for i in range(178, 178 + NUM_COLORS_IN_PALETTE)]
+
+# recolour flags for recolours
+PRIMARY_COLOUR = (1 << 10)
+SECONDARY_COLOUR = (1 << 19)
+TERTIARY_COLOUR = (1 << 29)
 
 # inspired by kohya_ss
 def register_image_extractor_block(client : OpenRCT2Client):
@@ -149,24 +151,8 @@ def register_image_extractor_block(client : OpenRCT2Client):
 
 
             return image_index
-                
-        def has_recolourable_colour(image : Image.Image) -> bool:
-            image_data = np.array(image)
-            for colour in REMAP1:
-                if colour in image_data:
-                    return True
-            
-            for colour in REMAP2:
-                if colour in image_data:
-                    return True
-            
-            for colour in REMAP3:
-                if colour in image_data:
-                    return True
-            
-            return False
         
-        def extract_all_images_of_type(output_folder, type, start_image_index = 0) -> int:
+        def extract_all_images_of_type(output_folder, type, exp_recolour, start_image_index = 0) -> int:
             # first get the ride objects ids
             output_path = os.path.abspath(output_folder)
             command_result = client.send_command(CommandTypes.GET_NUM_OBJECTS, type)
@@ -181,9 +167,20 @@ def register_image_extractor_block(client : OpenRCT2Client):
             palette = Image.open('data/screenshot.png').palette
 
             for j in range(num_objects):
-                read_images_result = client.send_command(CommandTypes.READ_IMAGES_FROM_OBJECT, (j, type))
-                if len(read_images_result.images) > 4 and export_animated_objects.value == False:
+                # first check for the recolour flags
+                read_flags_result = client.send_command(CommandTypes.READ_FLAGS_FROM_OBJECT, (j, type))
+                flags = read_flags_result.flags
+
+                # normally we shouldn't need to check for SECONDARY_COLOUR and TERTIARY_COLOUR
+                if (flags & PRIMARY_COLOUR) and exp_recolour == False:
                     continue
+
+                read_images_result = client.send_command(CommandTypes.READ_IMAGES_FROM_OBJECT, (j, type))
+
+                # we still want the 4 views of the first frame of the animated object
+                images = read_images_result.images
+                if len(read_images_result.images) > 4 and export_animated_objects.value == False:
+                    images = images[:4]
 
                 # parse the images
                 pckg_images = []
@@ -191,10 +188,7 @@ def register_image_extractor_block(client : OpenRCT2Client):
                 # this avoid multiple copies
                 copied_palette = copy(palette)
 
-                # detection of recolourable palette
-                recolourable_colour = False
-
-                for image in read_images_result.images:
+                for image in images:
                     
                     data = None
                     if image.type == 'rle':
@@ -204,11 +198,6 @@ def register_image_extractor_block(client : OpenRCT2Client):
                 
                     # save the image as png
                     im = Image.fromarray(data, mode='P')
-
-                    # check if the image has a recolourable color
-                    recolourable_colour = has_recolourable_colour(im)
-                    if recolourable_colour == True and export_recolourable_objects.value == False:
-                        break
 
                     # convert the image with the openrct2 palette
                     im.palette = copied_palette
@@ -221,45 +210,41 @@ def register_image_extractor_block(client : OpenRCT2Client):
                         image_index = image_index + 1
                     pckg_images.append(copy(im))
                 
-                if recolourable_colour == True and export_recolourable_objects == False:
-                    continue
-                
                 if pack_images_checkbox.value == True:
                     image_index = pack_images(output_path, image_index, pckg_images)
                     # we need to pack the images in a 512x512 image
                     # there is 3 possibilities: 1 view, 2 views and 4 views object
             return image_index
 
-        def extract_all_images(output_folder : str, exp_types : gr.CheckboxGroup):
-
+        def extract_all_images(output_folder : str, exp_types, exp_recolour):
             image_index = 0
             if 'Ride' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.RIDE, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.RIDE, exp_recolour, image_index)
             if 'Small Scenery' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.SMALL_SCENERY, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.SMALL_SCENERY, exp_recolour, image_index)
             if 'Large Scenery' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.LARGE_SCENERY, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.LARGE_SCENERY, exp_recolour, image_index)
             if 'Wall' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.WALL, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.WALL, exp_recolour, image_index)
             if 'Banner' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.BANNER, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.BANNER, exp_recolour, image_index)
             if 'Footpath' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.FOOTPATH, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.FOOTPATH, exp_recolour, image_index)
             if 'Footpath Addition' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.FOOTPATH_ADDITION, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.FOOTPATH_ADDITION, exp_recolour, image_index)
             if 'Scenery Group' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.SCENERY_GROUP, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.SCENERY_GROUP, exp_recolour, image_index)
             if 'Park Entrance' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.PARK_ENTRANCE, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.PARK_ENTRANCE, exp_recolour, image_index)
             if 'Water' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.WATER, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.WATER, exp_recolour, image_index)
             if 'Terrain Surface' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.TERRAIN_SURFACE, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.TERRAIN_SURFACE, exp_recolour, image_index)
             if 'Footpath Railings' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.FOOTPATH_RAILINGS, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.FOOTPATH_RAILINGS, exp_recolour, image_index)
             print('Done extracting images')
 
         export_button.click(
             extract_all_images,
-            inputs=[export_path, export_types]
+            inputs=[export_path, export_types, export_recolourable_objects]
         )

@@ -61,6 +61,15 @@ class OpenRCT2Client:
         command['type'] = 'get_num_objects'
         command['object_type'] = object_type
         return command
+    
+    def command_read_flags_from_object(self, args):
+        command = {}
+
+        object_id, object_type = args
+        command['type'] = 'read_flags_from_object'
+        command['object_id'] = object_id
+        command['object_type'] = object_type
+        return command
 
     def send_command(self, command_type, args) -> CommandResult:
         command = None
@@ -74,6 +83,8 @@ class OpenRCT2Client:
             command = self.command_get_num_objects(args)
         elif command_type == CommandTypes.READ_IDENTIFIERS_FROM_OBJECTS:
             command = self.command_read_identifiers_from_objects(args)
+        elif command_type == CommandTypes.READ_FLAGS_FROM_OBJECT:
+            command = self.command_read_flags_from_object(args)
         
         if command == None:
             return None
@@ -96,6 +107,8 @@ class OpenRCT2Client:
             result = GetNumObjectsResult()
         elif command_type == CommandTypes.READ_IDENTIFIERS_FROM_OBJECTS:
             result = ReadIdentifiersFromObject()
+        elif command_type == CommandTypes.READ_FLAGS_FROM_OBJECT:
+            result = ReadFlagsFromObject()
         result.parse_from_json(data)
 
         return result

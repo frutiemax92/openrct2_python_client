@@ -9,6 +9,7 @@ class CommandTypes:
     READ_IMAGES_FROM_OBJECT = 2
     GET_NUM_OBJECTS = 3
     READ_IDENTIFIERS_FROM_OBJECTS = 4
+    READ_FLAGS_FROM_OBJECT = 5
 
 @dataclass
 class CommandResult:
@@ -246,3 +247,15 @@ class ReadIdentifiersFromObject(CommandResult):
     def parse_from_json(self, json_result: str):
         json_struct = json.loads(json_result)
         self.ids = json_struct['ids']
+
+@dataclass
+class ReadFlagsFromObject(CommandResult):
+    type = 'read_flags_from_object'
+    flags = None
+
+    def parse_from_json(self, json_result: str):
+        json_struct = json.loads(json_result)
+
+        # sometimes this fails...
+        if 'flags' in json_struct:
+            self.flags = json_struct['flags']
