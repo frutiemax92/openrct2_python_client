@@ -1,60 +1,46 @@
 
 import gradio as gr
-from diffusers import AutoPipelineForText2Image
 from diffusers import StableDiffusionPipeline
-from diffusers import StableDiffusionAdapterPipeline
-from diffusers import DPMSolverMultistepScheduler
-from diffusers.loaders.lora import LoraLoaderMixin
-from peft import LoHaModel, LoHaConfig
+from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
 import peft
 
 import torch
+from lycoris.kohya import create_network_from_weights
+import os
+import urllib.request
+
+def check_for_lycoris():
+    # assume that if there is a file there, it's good
+    return os.path.exists('models/0p3nRCT2_v6.safetensors')
+
+def download_lycoris():
+    # download the lycoris
+    local_filename, headers = urllib.request.urlretrieve('https://huggingface.co/frutiemax/OpenRCT2ObjectGeneration/resolve/main/0p3nRCT2_v6.safetensors?download=true')
+
+    # copy the file into the models folder
+    os.replace(local_filename, 'models/0p3nRCT2_v6.safetensors')
+
 
 def generate_object(prompt : str, negative_prompt : str, guidance : float):
     # cyberrealistic classic v2.1 yields good results
     # https://civitai.com/models/71185/cyberrealistic-classic?modelVersionId=270057
-    pipeline = StableDiffusionPipeline.from_pretrained('runwayml/stable-diffusion-v1-5', \
-                                                        variant='fp16', safety_checker=None, use_safetensors=True)
+    #pipeline = StableDiffusionPipeline.from_pretrained('runwayml/stable-diffusion-v1-5', \
+                                                        #variant='fp16', safety_checker=None, use_safetensors=True)
+    pipeline = StableDiffusionPipeline.from_single_file('https://huggingface.co/cyberdelia/CyberRealisticClassic/blob/main/CyberRealisticCLASSIC_V2.1_FP16.safetensors')
 
-    # we also need to load our lycoris model
-    config_te = LoHaConfig(
-        r=128,
-        alpha=128,
-        target_modules=["k_proj", "q_proj", "v_proj", "out_proj", "fc1", "fc2"],
-        rank_dropout=0.0,
-        module_dropout=0.0,
-        init_weights=True,
-        base_model_name_or_path='models/0p3nRCT2_v6.safetensors'
-    )
+    # check for the OpenRCT2 lycoris model, if it isn't there, download it
+    if check_for_lycoris() == False:
+        download_lycoris()
 
-    config_unet = LoHaConfig(
-        r=128,
-        alpha=128,
-        target_modules=[
-            "proj_in",
-            "proj_out",
-            "to_k",
-            "to_q",
-            "to_v",
-            "to_out.0",
-            "ff.net.0.proj",
-            "ff.net.2",
-        ],
-        rank_dropout=0.0,
-        module_dropout=0.0,
-        init_weights=True,
-        use_effective_conv2d=True,
-        base_model_name_or_path='models/0p3nRCT2_v6.safetensors'
-    )
+    network, weights_sd = create_network_from_weights(1.0, 'models/0p3nRCT2_v6.safetensors', pipeline.vae, pipeline.text_encoder, pipeline.unet, for_inference=True)
 
-    lycoris_model = peft.auto.AutoPeftModel.from_pretrained('models/0p3nRCT2_v6.safetensors')
-
-
-    #pipeline.text_encoder = LoHaModel(pipeline.text_encoder, config_te, 'default')
-    #pipeline.unet = LoHaModel(pipeline.unet, config_unet, 'default')
-
-    #pipeline.load_lora_weights("hf-internal-testing/edgLycorisMugler-light", weight_name="edgLycorisMugler-light.safetensors")
+    network.to('cuda')
     pipeline.to('cuda')
+    pipeline.unet.to('cuda')
+    pipeline.text_encoder.to('cuda')
+    network.apply_to(pipeline.text_encoder, pipeline.unet, apply_text_encoder=True, apply_unet=True)
+    network.to('cuda')
+    
     return pipeline(prompt, num_inference_steps=40, guidance_scale=guidance, negative_prompt=negative_prompt).images[0]
     
 
