@@ -172,7 +172,8 @@ def register_image_extractor_block(client : OpenRCT2Client):
                 flags = read_flags_result.flags
 
                 # normally we shouldn't need to check for SECONDARY_COLOUR and TERTIARY_COLOUR
-                if (flags & PRIMARY_COLOUR) and exp_recolour == False:
+                # hack : flags property only exists for small scenery for now
+                if flags != None and (flags & PRIMARY_COLOUR) and exp_recolour == False:
                     continue
 
                 read_images_result = client.send_command(CommandTypes.READ_IMAGES_FROM_OBJECT, (j, type))

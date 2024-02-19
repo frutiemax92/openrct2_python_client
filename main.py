@@ -1,6 +1,7 @@
 from openrct2.client import OpenRCT2Client
 import gradio as gr
 from app.image_extractor import register_image_extractor_block
+from app.object_generation import register_object_generation_block
 import tkinter as tk
 
 OPENRCT2_CLIENT_PORT = 7861
@@ -21,7 +22,7 @@ def main():
     with gr.Blocks() as interface:
         # create some tabs
         with gr.Tab("Object Generation"):
-            pass
+            register_object_generation_block(client)
         with gr.Tab("Foliage Autocompleter"):
             pass
         with gr.Tab("Utilities"):
