@@ -4,19 +4,11 @@ from app.image_extractor import register_image_extractor_block
 from app.object_generation import register_object_generation_block
 import tkinter as tk
 
-OPENRCT2_CLIENT_PORT = 7861
-
 def greet(name):
     return "Hello " + name + "!"
 
 def main():
     client = OpenRCT2Client()
-
-    # try to connect
-    error = client.connect(OPENRCT2_CLIENT_PORT)
-    if error != None:
-        print(f'Could not connect to OpenRCT2: the error code is {error}')
-        return
     
     # launch a gradio app
     with gr.Blocks() as interface:

@@ -1,14 +1,10 @@
 
 import gradio as gr
 from diffusers import StableDiffusionPipeline
-from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
-import peft
 
-import torch
 from lycoris.kohya import create_network_from_weights
 import os
 import urllib.request
-import tqdm
 
 def check_for_lycoris():
     # assume that if there is a file there, it's good
@@ -59,9 +55,9 @@ def generate_object(prompt : str, negative_prompt : str, guidance : float, progr
 def register_object_generation_block(client):
     with gr.Column():
         with gr.Row():
-            object_prompt = gr.Textbox(value='Enter your prompt here', label='Object Prompt', interactive=True)
-            negative_prompt = gr.Textbox(value='Enter your negative prompt here', label='Object Prompt', interactive=True)
-            guidance_scroll = gr.Slider(value=7.0, label='Guidance', interactive=True)
+            object_prompt = gr.Textbox(value='0p3nRCT2 image, black poplar tree, green leaves, brown trunk, black background', label='Object Prompt', interactive=True)
+            negative_prompt = gr.Textbox(value='', label='Negative Prompt', interactive=True)
+            guidance_scroll = gr.Slider(value=7.0, label='Guidance', maximum=11, interactive=True)
             generate_button = gr.Button('Generate')
         generation_output = gr.Image(interactive=False)
     

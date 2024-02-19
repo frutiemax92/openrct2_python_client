@@ -6,7 +6,6 @@ from app.common_gui import get_file_path
 from image_utils.rle_decoder import decode_image_rle
 
 from PIL import Image
-from image_utils.palette_decoder import PaletteImage
 import os
 import numpy as np
 from copy import copy
@@ -19,6 +18,7 @@ NUM_COLORS_IN_PALETTE = 12
 PRIMARY_COLOUR = (1 << 10)
 SECONDARY_COLOUR = (1 << 19)
 TERTIARY_COLOUR = (1 << 29)
+OPENRCT2_CLIENT_PORT = 7861
 
 # inspired by kohya_ss
 def register_image_extractor_block(client : OpenRCT2Client):
@@ -218,6 +218,12 @@ def register_image_extractor_block(client : OpenRCT2Client):
             return image_index
 
         def extract_all_images(output_folder : str, exp_types, exp_recolour):
+            # try to connect
+            error = client.connect(OPENRCT2_CLIENT_PORT)
+            if error != None:
+                print(f'Could not connect to OpenRCT2: the error code is {error}')
+                return
+            
             image_index = 0
             if 'Ride' in exp_types:
                 image_index = extract_all_images_of_type(output_folder, ObjectType.RIDE, exp_recolour, image_index)

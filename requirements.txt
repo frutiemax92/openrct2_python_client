@@ -1,0 +1,5 @@
+diffusers==0.26.3
+gradio==4.19.1
+lycoris_lora==2.1.0.post2
+numpy==1.26.4
+Pillow==10.2.0
