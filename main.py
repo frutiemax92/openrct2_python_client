@@ -11,7 +11,7 @@ def main():
     client = OpenRCT2Client()
     
     # launch a gradio app
-    with gr.Blocks() as interface:
+    with gr.Blocks(title='OpenRCT2 AI Tools') as interface:
         # create some tabs
         with gr.Tab("Object Generation"):
             register_object_generation_block(client)
