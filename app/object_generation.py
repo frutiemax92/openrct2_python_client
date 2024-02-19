@@ -8,20 +8,29 @@ import torch
 from lycoris.kohya import create_network_from_weights
 import os
 import urllib.request
+import tqdm
 
 def check_for_lycoris():
     # assume that if there is a file there, it's good
     return os.path.exists('models/0p3nRCT2_v6.safetensors')
 
+def download_progress(chunk_number, maximum_size_chunks_read, total_size, download_progress=gr.Progress()):
+    download_progress(chunk_number * maximum_size_chunks_read / total_size, desc='Downloading OpenRCT2 Lycoris Model')
+    print(f'chunk_number={chunk_number}, maximum_size_chunks_read={maximum_size_chunks_read}, total_size={total_size}')
+
 def download_lycoris():
     # download the lycoris
-    local_filename, headers = urllib.request.urlretrieve('https://huggingface.co/frutiemax/OpenRCT2ObjectGeneration/resolve/main/0p3nRCT2_v6.safetensors?download=true')
+    local_filename, headers = urllib.request.urlretrieve('https://huggingface.co/frutiemax/OpenRCT2ObjectGeneration/resolve/main/0p3nRCT2_v6.safetensors?download=true', \
+                                                         reporthook=download_progress)
 
     # copy the file into the models folder
     os.replace(local_filename, 'models/0p3nRCT2_v6.safetensors')
 
 
-def generate_object(prompt : str, negative_prompt : str, guidance : float):
+def progress_callback(pipe, step_index, timestep, callback_kwargs):
+    return callback_kwargs
+
+def generate_object(prompt : str, negative_prompt : str, guidance : float, progress=gr.Progress(track_tqdm=True)):
     # cyberrealistic classic v2.1 yields good results
     # https://civitai.com/models/71185/cyberrealistic-classic?modelVersionId=270057
     #pipeline = StableDiffusionPipeline.from_pretrained('runwayml/stable-diffusion-v1-5', \
@@ -41,7 +50,8 @@ def generate_object(prompt : str, negative_prompt : str, guidance : float):
     network.apply_to(pipeline.text_encoder, pipeline.unet, apply_text_encoder=True, apply_unet=True)
     network.to('cuda')
     
-    return pipeline(prompt, num_inference_steps=40, guidance_scale=guidance, negative_prompt=negative_prompt).images[0]
+    progress(0, desc='Generating...')
+    return pipeline(prompt, num_inference_steps=40, guidance_scale=guidance, negative_prompt=negative_prompt, callback_on_step_end=progress_callback, callback_kwargs=progress).images[0]
     
 
 
