@@ -26,7 +26,7 @@ def download_lycoris():
 def progress_callback(pipe, step_index, timestep, callback_kwargs):
     return callback_kwargs
 
-def generate_object(prompt : str, negative_prompt : str, guidance : float, progress=gr.Progress(track_tqdm=True)):
+def generate_image(prompt : str, negative_prompt : str, guidance : float, progress=gr.Progress(track_tqdm=True)):
     # cyberrealistic classic v2.1 yields good results
     # https://civitai.com/models/71185/cyberrealistic-classic?modelVersionId=270057
     #pipeline = StableDiffusionPipeline.from_pretrained('runwayml/stable-diffusion-v1-5', \
@@ -48,22 +48,49 @@ def generate_object(prompt : str, negative_prompt : str, guidance : float, progr
     
     progress(0, desc='Generating...')
     return pipeline(prompt, num_inference_steps=40, guidance_scale=guidance, negative_prompt=negative_prompt, callback_on_step_end=progress_callback, callback_kwargs=progress).images[0]
-    
 
-
+def generate_object(image, object_name : str, object_description : str, author : str, object_type : str):
+    pass
 
 def register_object_generation_block(client):
-    with gr.Column():
-        with gr.Row():
-            object_prompt = gr.Textbox(value='0p3nRCT2 image, black poplar tree, green leaves, brown trunk, black background', label='Object Prompt', interactive=True)
+    with gr.Row():
+        with gr.Column():
+            object_prompt = gr.Textbox(value='0p3nRCT2 image, black poplar tree, green leaves, brown trunk, black background', label='Object Prompt', \
+                                    interactive=True)
+        with gr.Column():
             negative_prompt = gr.Textbox(value='', label='Negative Prompt', interactive=True)
+        
+        with gr.Column():
             guidance_scroll = gr.Slider(value=7.0, label='Guidance', maximum=11, interactive=True)
+        
+        with gr.Column():
             generate_button = gr.Button('Generate')
-        generation_output = gr.Image(interactive=False)
+
+    with gr.Row():
+        with gr.Column():
+            generation_output = gr.Image(interactive=False, width=256, height=256, show_download_button=False, show_label=False)
+
+        # ui elements for parkobj generation
+        with gr.Column():
+            with gr.Row():
+                with gr.Column():
+                    object_name = gr.Textbox(value='', label='Object Name', interactive=True)
+                with gr.Column():
+                    object_description = gr.Textbox(value='', label='Object Description', interactive=True)
+            with gr.Row():
+                with gr.Column():
+                    author = gr.Textbox(value='', label='Author', interactive=True)
+                with gr.Column():
+                    object_type = gr.Dropdown(['Quarter Tile', 'Full Tile'], label='Object Size', value='Full Tile', interactive=True)
+    
+    with gr.Row():
+        park_obj_button = gr.Button('Generate object')
     
     generate_button.click(
-        generate_object,
+        generate_image,
         inputs=[object_prompt, negative_prompt, guidance_scroll], outputs=generation_output
     )
+
+    
 
 
