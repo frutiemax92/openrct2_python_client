@@ -107,9 +107,12 @@ def post_process_image(image, image_size, threshold, resample_method : str):
     if resample_method == 'Nearest':
         r = Image.NEAREST
     
+    threshold = threshold
+    
     image = image.resize((image_size, image_size), resample=r)
 
     # replace the background with a color rct will recognize
+    #image = fuzzy_flood(image, 3.0)
     image = fuzzy_flood(image, threshold)
 
     # now convert the image using the palette
