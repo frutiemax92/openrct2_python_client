@@ -5,6 +5,11 @@ from diffusers import StableDiffusionPipeline
 from lycoris.kohya import create_network_from_weights
 import os
 import urllib.request
+import numpy as np
+from PIL import Image
+from image_utils.fuzzy_flood import fuzzy_flood
+from PIL.ImageDraw import floodfill
+import json
 
 def check_for_lycoris():
     # assume that if there is a file there, it's good
@@ -49,8 +54,129 @@ def generate_image(prompt : str, negative_prompt : str, guidance : float, progre
     progress(0, desc='Generating...')
     return pipeline(prompt, num_inference_steps=40, guidance_scale=guidance, negative_prompt=negative_prompt, callback_on_step_end=progress_callback, callback_kwargs=progress).images[0]
 
+def generate_json(object_description : str, author : str, object_type : str, object_name : str):
+    json_dict = {}
+    json_dict['id'] = object_name
+    json_dict['authors'] = [author]
+    
+    json_dict['version'] = '1.0'
+    json_dict['sourceGame'] = 'custom'
+    json_dict['objectType'] = 'scenery_small'
+
+    properties = {}
+    properties['price'] = 24
+    properties['removalPrice'] = -18
+    properties['cursor'] = 'CURSOR_STATUE_DOWN'
+    properties['height'] = 40
+    
+    if object_type == 'Quarter Tile':
+        properties['shape'] = '1/4'
+    else:
+        properties['shape'] = '4/4'
+    
+    properties['requiresFlatSurface'] = False
+    properties['isRotatable'] = True
+    properties['isStackable'] = True
+
+    json_dict['properties'] = properties
+    json_dict["images"] =  [
+        { "path": "images/0.png", "x": -23, "y": -42 },
+        { "path": "images/1.png", "x": -23, "y": -48 },
+        { "path": "images/2.png", "x": -22, "y": -48 },
+        { "path": "images/3.png", "x": -22, "y": -42 }
+    ]
+    name = {}
+    name['en-GB'] = object_description
+    
+    strings = {}
+    strings['name'] = name
+
+    json_dict['strings'] = strings
+    return json_dict
+
 def generate_object(image, object_name : str, object_description : str, author : str, object_type : str):
-    pass
+    # first check that the image is not null
+    if isinstance(image, np.ndarray) == False:
+        print('Error : you must generate an image before generating an object file!')
+        return
+    
+    # check for the next available object file that starts with the object name
+    files = os.listdir('outputs')
+    files_with_name = [filename for filename in files if object_name in filename]
+
+    index = 0
+    output_folder = None
+    detected = True
+    while True:
+        detected = False
+        output_folder = object_name + str(index)
+        detected = False
+        for filename in files_with_name:
+            if output_folder == filename:
+                detected = True
+                break
+        if detected == False:
+            break
+        index = index + 1
+    output_folder = os.path.join('outputs', output_folder)
+
+    # ok, now resize the image based on the choice the user made
+    # 128x128 for full tile and 64x64 for quarter tile
+    image = Image.fromarray(image)
+    width, height = 128, 128
+    if object_type == 'Quarter Tile':
+        width, height = 64, 64
+
+    image = image.resize(size=(width, height), resample=Image.NEAREST)
+
+    # replace the background with a color rct will recognize
+    upper_pixel = image.getpixel((0, 0))
+    for y in range(image.height):
+        for x in range(image.width):
+            color = image.getpixel((x, y))
+            delta = np.mean(np.asarray(color) - np.asarray(upper_pixel))
+            if delta < 10.0:
+                image.putpixel((x, y), (23, 35, 35))
+
+    # now convert the image using the palette
+    palette = Image.open('data/screenshot.png')
+    image = image.quantize(palette=palette)
+    
+    # cut the image into 4 images
+    images = []
+    for x in range(2):
+        for y in range(2):
+            left = x * width / 2
+            right = left + width / 2
+            top = y * height / 2
+            bottom = top + height / 2
+
+            view = image.crop((left, top, right, bottom))
+            images.append(view)
+    
+
+    # now that we have our images, we need to generate the object.json
+    json_dict = generate_json(object_description, author, object_type, object_name)
+
+    # create a folder
+    os.mkdir(output_folder)
+
+    # create a object.json inside the output folder
+    json_string = json.dumps(json_dict, indent=4)
+    obj_json_path = os.path.join(output_folder, 'object.json')
+    with open(obj_json_path, 'w') as f:
+        f.write(json_string)
+    
+    # create an images folder inside the output folder
+    images_folder = os.path.join(output_folder, 'images')
+    os.mkdir(images_folder)
+
+    for i in range(len(images)):
+        view = images[i]
+        file_path = os.path.join(images_folder, f'{i}.png')
+        view.save(file_path)
+    
+    print('Finished')
 
 def register_object_generation_block(client):
     with gr.Row():
@@ -84,13 +210,14 @@ def register_object_generation_block(client):
                     object_type = gr.Dropdown(['Quarter Tile', 'Full Tile'], label='Object Size', value='Full Tile', interactive=True)
     
     with gr.Row():
-        park_obj_button = gr.Button('Generate object')
+        park_obj_button = gr.Button('Generate object', interactive=True)
     
     generate_button.click(
         generate_image,
         inputs=[object_prompt, negative_prompt, guidance_scroll], outputs=generation_output
     )
 
-    
-
-
+    park_obj_button.click(
+        generate_object,
+        inputs=[generation_output, object_name, object_description, author, object_type]
+    )
