@@ -31,7 +31,7 @@ def download_lycoris():
 def progress_callback(pipe, step_index, timestep, callback_kwargs):
     return callback_kwargs
 
-def generate_image(prompt : str, negative_prompt : str, guidance : float, progress=gr.Progress(track_tqdm=True)):
+def generate_image(prompt : str, negative_prompt : str, guidance : float, threshold : float, progress=gr.Progress(track_tqdm=True)):
     # cyberrealistic classic v2.1 yields good results
     # https://civitai.com/models/71185/cyberrealistic-classic?modelVersionId=270057
     #pipeline = StableDiffusionPipeline.from_pretrained('runwayml/stable-diffusion-v1-5', \
@@ -52,7 +52,10 @@ def generate_image(prompt : str, negative_prompt : str, guidance : float, progre
     network.to('cuda')
     
     progress(0, desc='Generating...')
-    return pipeline(prompt, num_inference_steps=40, guidance_scale=guidance, negative_prompt=negative_prompt, callback_on_step_end=progress_callback, callback_kwargs=progress).images[0]
+    
+    out_image = pipeline(prompt, num_inference_steps=40, guidance_scale=guidance, negative_prompt=negative_prompt, callback_on_step_end=progress_callback, callback_kwargs=progress).images[0]
+    post_process = post_process_image(out_image, 128, threshold, 'Nearest')
+    return [out_image, post_process, 128, 'Nearest']
 
 def generate_json(object_description : str, author : str, object_type : str, object_name : str):
     json_dict = {}
@@ -94,13 +97,37 @@ def generate_json(object_description : str, author : str, object_type : str, obj
     json_dict['strings'] = strings
     return json_dict
 
-def generate_object(image, object_name : str, object_description : str, author : str, object_type : str):
-    # first check that the image is not null
-    if isinstance(image, np.ndarray) == False:
-        print('Error : you must generate an image before generating an object file!')
-        return
+def post_process_image(image, image_size, threshold, resample_method : str):
+    # ok, now resize the image based on the choice the user made
+    # 128x128 for full tile and 64x64 for quarter tile
+    if isinstance(image, np.ndarray):
+        image = Image.fromarray(image)
     
+    r = Image.BICUBIC
+    if resample_method == 'Nearest':
+        r = Image.NEAREST
+    
+    image = image.resize((image_size, image_size), resample=r)
+
+    # replace the background with a color rct will recognize
+    image = fuzzy_flood(image, threshold)
+
+    # now convert the image using the palette
+    palette = Image.open('data/screenshot.png')
+    image = image.quantize(palette=palette, dither=Image.FLOYDSTEINBERG)
+
+    # we now need to replace the background color with zero
+    upper_left = image.getpixel((0, 0))
+    for y in range(image.height):
+        for x in range(image.width):
+            color = image.getpixel((x, y))
+            if color == upper_left:
+                image.putpixel((x, y), 0)
+    return image
+
+def generate_object(image, image_size, object_name : str, object_description : str, author : str, object_type : str):
     # check for the next available object file that starts with the object name
+    image = Image.fromarray(image)
     files = os.listdir('outputs')
     files_with_name = [filename for filename in files if object_name in filename]
 
@@ -120,36 +147,14 @@ def generate_object(image, object_name : str, object_description : str, author :
         index = index + 1
     output_folder = os.path.join('outputs', output_folder)
 
-    # ok, now resize the image based on the choice the user made
-    # 128x128 for full tile and 64x64 for quarter tile
-    image = Image.fromarray(image)
-    width, height = 128, 128
-    if object_type == 'Quarter Tile':
-        width, height = 64, 64
-
-    image = image.resize(size=(width, height), resample=Image.NEAREST)
-
-    # replace the background with a color rct will recognize
-    upper_pixel = image.getpixel((0, 0))
-    for y in range(image.height):
-        for x in range(image.width):
-            color = image.getpixel((x, y))
-            delta = np.mean(np.asarray(color) - np.asarray(upper_pixel))
-            if delta < 10.0:
-                image.putpixel((x, y), (23, 35, 35))
-
-    # now convert the image using the palette
-    palette = Image.open('data/screenshot.png')
-    image = image.quantize(palette=palette)
-    
     # cut the image into 4 images
     images = []
     for x in range(2):
         for y in range(2):
-            left = x * width / 2
-            right = left + width / 2
-            top = y * height / 2
-            bottom = top + height / 2
+            left = x * image_size / 2
+            right = left + image_size / 2
+            top = y * image_size / 2
+            bottom = top + image_size / 2
 
             view = image.crop((left, top, right, bottom))
             images.append(view)
@@ -194,30 +199,55 @@ def register_object_generation_block(client):
 
     with gr.Row():
         with gr.Column():
-            generation_output = gr.Image(interactive=False, width=256, height=256, show_download_button=False, show_label=False)
+            generation_output = gr.Image(interactive=False, width=256, height=256, show_download_button=False, show_label=True, label='Output')
 
         # ui elements for parkobj generation
         with gr.Column():
             with gr.Row():
-                with gr.Column():
-                    object_name = gr.Textbox(value='', label='Object Name', interactive=True)
-                with gr.Column():
-                    object_description = gr.Textbox(value='', label='Object Description', interactive=True)
+                object_name = gr.Textbox(value='', label='Object Name', interactive=True)
             with gr.Row():
-                with gr.Column():
-                    author = gr.Textbox(value='', label='Author', interactive=True)
-                with gr.Column():
-                    object_type = gr.Dropdown(['Quarter Tile', 'Full Tile'], label='Object Size', value='Full Tile', interactive=True)
+                object_description = gr.Textbox(value='', label='Object Description', interactive=True)
+        with gr.Column():
+            with gr.Row():
+                author = gr.Textbox(value='', label='Author', interactive=True)
+            with gr.Row():
+                object_type = gr.Dropdown(['Quarter Tile', 'Full Tile'], label='Object Size', value='Full Tile', interactive=True)
     
+
+    with gr.Row():
+        with gr.Column():
+            post_process_output = gr.Image(interactive=False, width=256, height=256, show_download_button=False, show_label=True, label='Post Process')
+        
+        with gr.Column():
+            with gr.Row():
+                post_process_size = gr.Slider(minimum=32, maximum=256, value=128, label='Image Size', \
+                                              interactive=True)
+            with gr.Row():
+                background_threshold = gr.Slider(minimum=0.0, maximum=100.0, value=10.0, label='Background Threshold', \
+                                                 interactive=True)
+        
+        with gr.Column():
+            with gr.Row():
+                resample_method = gr.Dropdown(['Nearest', 'Bicubic'], label='Resample method', value='Nearest', interactive=True)
     with gr.Row():
         park_obj_button = gr.Button('Generate object', interactive=True)
     
     generate_button.click(
         generate_image,
-        inputs=[object_prompt, negative_prompt, guidance_scroll], outputs=generation_output
+        inputs=[object_prompt, negative_prompt, guidance_scroll, background_threshold], \
+            outputs=[generation_output, post_process_output, post_process_size, resample_method]
     )
 
     park_obj_button.click(
         generate_object,
-        inputs=[generation_output, object_name, object_description, author, object_type]
+        inputs=[post_process_output, post_process_size, object_name, object_description, author, object_type]
     )
+
+    post_process_size.release(post_process_image, inputs=[generation_output, post_process_size, background_threshold, resample_method], \
+                              outputs=[post_process_output])
+
+    background_threshold.release(post_process_image, inputs=[generation_output, post_process_size, background_threshold, resample_method], \
+                              outputs=[post_process_output])
+    resample_method.change(post_process_image, inputs=[generation_output, post_process_size, background_threshold, resample_method], \
+                              outputs=[post_process_output])
+
