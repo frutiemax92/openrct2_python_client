@@ -10,6 +10,8 @@ from PIL import Image
 from image_utils.fuzzy_flood import fuzzy_flood
 from PIL.ImageDraw import floodfill
 import json
+import gc
+import torch
 
 def check_for_lycoris():
     # assume that if there is a file there, it's good
@@ -54,7 +56,19 @@ def generate_image(prompt : str, negative_prompt : str, guidance : float, thresh
     progress(0, desc='Generating...')
     
     out_image = pipeline(prompt, num_inference_steps=40, guidance_scale=guidance, negative_prompt=negative_prompt, callback_on_step_end=progress_callback, callback_kwargs=progress).images[0]
+
+    # free up the memory
+    del pipeline
+    del network
+    del weights_sd
+    gc.collect()
+
+    with torch.no_grad():
+        torch.cuda.empty_cache()
+
     post_process = post_process_image(out_image, 128, threshold, 'Nearest')
+
+
     return [out_image, post_process, 128, 'Nearest']
 
 def generate_json(object_description : str, author : str, object_type : str, object_name : str):
