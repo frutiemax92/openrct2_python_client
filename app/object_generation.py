@@ -12,6 +12,7 @@ from PIL.ImageDraw import floodfill
 import json
 import gc
 import torch
+import shutil
 
 def check_for_lycoris():
     # assume that if there is a file there, it's good
@@ -27,7 +28,8 @@ def download_lycoris():
                                                          reporthook=download_progress)
 
     # copy the file into the models folder
-    os.replace(local_filename, 'models/0p3nRCT2_v6.safetensors')
+    #os.replace(local_filename, 'models/0p3nRCT2_v6.safetensors')
+    shutil.move(local_filename, os.path.relpath('models/0p3nRCT2_v6.safetensors'))
 
 
 def progress_callback(pipe, step_index, timestep, callback_kwargs):
@@ -55,7 +57,7 @@ def generate_image(prompt : str, negative_prompt : str, guidance : float, thresh
     
     progress(0, desc='Generating...')
     
-    out_image = pipeline(prompt, num_inference_steps=40, guidance_scale=guidance, negative_prompt=negative_prompt, callback_on_step_end=progress_callback, callback_kwargs=progress).images[0]
+    out_image = pipeline(prompt, num_inference_steps=40, guidance_scale=guidance, negative_prompt=negative_prompt, callback_on_step_end=progress_callback).images[0]
 
     # free up the memory
     del pipeline

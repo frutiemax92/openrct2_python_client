@@ -1,5 +1,11 @@
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch==2.2.1
+torchvision==0.17.1
+peft==0.8.2
 diffusers==0.26.3
 gradio==4.19.1
 lycoris_lora==2.1.0.post2
 numpy==1.26.4
 Pillow==10.2.0
+einops==0.7.0
+toml==0.10.2
