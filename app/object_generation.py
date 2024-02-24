@@ -47,7 +47,7 @@ def generate_image(prompt : str, negative_prompt : str, guidance : float, thresh
         download_lycoris()
 
     network, weights_sd = create_network_from_weights(1.0, 'models/0p3nRCT2_v6.safetensors', pipeline.vae, pipeline.text_encoder, pipeline.unet, for_inference=True)
-
+    
     network.to('cuda')
     pipeline.to('cuda')
     pipeline.unet.to('cuda')

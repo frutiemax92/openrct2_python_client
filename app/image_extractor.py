@@ -27,9 +27,9 @@ def register_image_extractor_block(client : OpenRCT2Client):
                                         'Station', 'Music', 'Footpath Surface', 'Footpath Railings'], value=['Small Scenery', 'Large Scenery', 'Wall'], \
                                             label='Object Types', interactive=True)
 
-    export_animated_objects = gr.Checkbox(value=False, label='Export Animated Objects')
-    export_recolourable_objects = gr.Checkbox(value=False, label='Export Recolourable Objects')
-    pack_images_checkbox = gr.Checkbox(value=True, label='Pack Views in 512x512 images')
+    export_animated_objects = gr.Checkbox(value=False, label='Export Animated Objects', interactive=True)
+    export_recolourable_objects = gr.Checkbox(value=False, label='Export Recolourable Objects', interactive=True)
+    pack_images_checkbox = gr.Checkbox(value=True, label='Pack Views in 512x512 images', interactive=True)
     with gr.Row():
         export_path = gr.Textbox('Export Path', interactive=True, label='Export Path')
         folder_button = gr.Button(FOLDER_SYMBOL)
@@ -152,7 +152,7 @@ def register_image_extractor_block(client : OpenRCT2Client):
 
             return image_index
         
-        def extract_all_images_of_type(output_folder, type, exp_recolour, start_image_index = 0) -> int:
+        def extract_all_images_of_type(output_folder, type, exp_recolour, pack_images_val, start_image_index = 0) -> int:
             # first get the ride objects ids
             output_path = os.path.abspath(output_folder)
             command_result = client.send_command(CommandTypes.GET_NUM_OBJECTS, type)
@@ -186,11 +186,7 @@ def register_image_extractor_block(client : OpenRCT2Client):
                 # parse the images
                 pckg_images = []
 
-                # this avoid multiple copies
-                copied_palette = copy(palette)
-
                 for image in images:
-                    
                     data = None
                     if image.type == 'rle':
                         data = decode_image_rle(image.data, image.width, image.height)
@@ -199,25 +195,41 @@ def register_image_extractor_block(client : OpenRCT2Client):
                 
                     # save the image as png
                     im = Image.fromarray(data, mode='P')
-
-                    # convert the image with the openrct2 palette
-                    im.palette = copied_palette
                     
                     # save the image
-                    if pack_images_checkbox.value == False:
+                    if pack_images_val == False:
                         out_image = os.path.join(output_path, f'{image_index}.png')
-                        im.save(out_image)
+                        copied_palette = copy(palette)
+
+                        # scale the image and center it
+                        scale_x = 512 / im.width
+                        scale_y = 512 / im.height
+                        scale = int(np.minimum(scale_x, scale_y))
+
+                        # scale the image
+                        im = im.resize((im.width * scale, im.height * scale))
+
+                        # copy the image into a new 512x512 centered
+                        new_image = Image.new(mode='P', size=(512, 512))
+                        new_image.palette = copied_palette
+
+                        origin_x = int((512 - im.width) / 2)
+                        origin_y = int((512 - im.height) / 2)
+                        new_image.paste(im, (origin_x, origin_y))
+
+                        #im.show()
+                        new_image.save(out_image)
 
                         image_index = image_index + 1
                     pckg_images.append(copy(im))
                 
-                if pack_images_checkbox.value == True:
+                if pack_images_val == True:
                     image_index = pack_images(output_path, image_index, pckg_images)
                     # we need to pack the images in a 512x512 image
                     # there is 3 possibilities: 1 view, 2 views and 4 views object
             return image_index
 
-        def extract_all_images(output_folder : str, exp_types, exp_recolour):
+        def extract_all_images(output_folder : str, exp_types, exp_recolour, pack_images_val):
             # try to connect
             error = client.connect(OPENRCT2_CLIENT_PORT)
             if error != None:
@@ -226,32 +238,32 @@ def register_image_extractor_block(client : OpenRCT2Client):
             
             image_index = 0
             if 'Ride' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.RIDE, exp_recolour, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.RIDE, exp_recolour, pack_images_val, image_index)
             if 'Small Scenery' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.SMALL_SCENERY, exp_recolour, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.SMALL_SCENERY, exp_recolour, pack_images_val, image_index)
             if 'Large Scenery' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.LARGE_SCENERY, exp_recolour, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.LARGE_SCENERY, exp_recolour, pack_images_val, image_index)
             if 'Wall' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.WALL, exp_recolour, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.WALL, exp_recolour, pack_images_val, image_index)
             if 'Banner' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.BANNER, exp_recolour, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.BANNER, exp_recolour, pack_images_val, image_index)
             if 'Footpath' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.FOOTPATH, exp_recolour, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.FOOTPATH, exp_recolour, pack_images_val, image_index)
             if 'Footpath Addition' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.FOOTPATH_ADDITION, exp_recolour, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.FOOTPATH_ADDITION, exp_recolour, pack_images_val, image_index)
             if 'Scenery Group' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.SCENERY_GROUP, exp_recolour, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.SCENERY_GROUP, exp_recolour, pack_images_val, image_index)
             if 'Park Entrance' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.PARK_ENTRANCE, exp_recolour, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.PARK_ENTRANCE, exp_recolour, pack_images_val, image_index)
             if 'Water' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.WATER, exp_recolour, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.WATER, exp_recolour, pack_images_val, image_index)
             if 'Terrain Surface' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.TERRAIN_SURFACE, exp_recolour, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.TERRAIN_SURFACE, exp_recolour, pack_images_val, image_index)
             if 'Footpath Railings' in exp_types:
-                image_index = extract_all_images_of_type(output_folder, ObjectType.FOOTPATH_RAILINGS, exp_recolour, image_index)
+                image_index = extract_all_images_of_type(output_folder, ObjectType.FOOTPATH_RAILINGS, exp_recolour, pack_images_val, image_index)
             print('Done extracting images')
 
         export_button.click(
             extract_all_images,
-            inputs=[export_path, export_types, export_recolourable_objects]
+            inputs=[export_path, export_types, export_recolourable_objects, pack_images_checkbox]
         )
