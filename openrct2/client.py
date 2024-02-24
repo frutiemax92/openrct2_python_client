@@ -71,6 +71,15 @@ class OpenRCT2Client:
         command['object_type'] = object_type
         return command
 
+    def command_read_offsets_from_object(self, args):
+        command = {}
+
+        object_id, object_type = args
+        command['type'] = 'read_offsets_from_object'
+        command['object_id'] = object_id
+        command['object_type'] = object_type
+        return command
+
     def send_command(self, command_type, args) -> CommandResult:
         command = None
         if command_type == CommandTypes.READ_TILE:
@@ -85,6 +94,8 @@ class OpenRCT2Client:
             command = self.command_read_identifiers_from_objects(args)
         elif command_type == CommandTypes.READ_FLAGS_FROM_OBJECT:
             command = self.command_read_flags_from_object(args)
+        elif command_type == CommandTypes.READ_OFFSETS_FROM_OBJECT:
+            command = self.command_read_offsets_from_object(args)
         
         if command == None:
             return None
@@ -109,6 +120,8 @@ class OpenRCT2Client:
             result = ReadIdentifiersFromObject()
         elif command_type == CommandTypes.READ_FLAGS_FROM_OBJECT:
             result = ReadFlagsFromObject()
+        elif command_type == CommandTypes.READ_OFFSETS_FROM_OBJECT:
+            result = ReadOffsetsFromObject()
         result.parse_from_json(data)
 
         return result
