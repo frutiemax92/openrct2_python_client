@@ -101,7 +101,7 @@ def generate_json(object_description : str, author : str, object_type : str, obj
     properties['requiresFlatSurface'] = False
     properties['isRotatable'] = True
     properties['isStackable'] = True
-    properties['SMALL_SCENERY_FLAG_VOFFSET_CENTRE'] = True
+    #properties['SMALL_SCENERY_FLAG_VOFFSET_CENTRE'] = True
     properties['hasNoSupports'] = True
 
     json_dict['properties'] = properties
@@ -223,7 +223,13 @@ def generate_object(image, post_image, image_size, object_name : str, object_des
             #grayscale_image = to_pil_image(grayscale)
             #grayscale_image.show()
             offset = offset_model(grayscale)
-            offsets.append(offset[0])
+
+            # we need to denormalize the offset
+            scale_x = 256 / view_cropped.width
+            scale_y = 256 / view_cropped.height
+            scale = np.minimum(scale_x, scale_y)
+            scale = 1 / scale
+            offsets.append(offset[0] * scale)
             
 
     # now that we have our images, we need to generate the object.json
@@ -277,7 +283,7 @@ def register_object_generation_block(client):
 
     with gr.Row():
         with gr.Column():
-            generation_output = gr.Image(interactive=False, width=256, height=256, show_download_button=False, show_label=True, label='Output')
+            generation_output = gr.Image(interactive=True, width=256, height=256, show_download_button=False, show_label=True, label='Output')
 
         # ui elements for parkobj generation
         with gr.Column():

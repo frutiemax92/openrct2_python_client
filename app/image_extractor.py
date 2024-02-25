@@ -15,11 +15,17 @@ FOLDER_SYMBOL = '\U0001f4c2'
 
 NUM_COLORS_IN_PALETTE = 12
 
+# flags for offsets
+SMALL_SCENERY_FLAG_FULL_TILE = (1 << 0)
+SMALL_SCENERY_FLAG_VOFFSET_CENTRE = (1 << 1)
+
 # recolour flags for recolours
 PRIMARY_COLOUR = (1 << 10)
 SECONDARY_COLOUR = (1 << 19)
 TERTIARY_COLOUR = (1 << 29)
 OPENRCT2_CLIENT_PORT = 7861
+
+
 
 # inspired by kohya_ss
 def register_image_extractor_block(client : OpenRCT2Client):
@@ -213,30 +219,18 @@ def register_image_extractor_block(client : OpenRCT2Client):
                     if pack_images_val == False:
                         out_image = os.path.join(output_path, f'{image_index}.png')
                         copied_palette = copy(palette)
-
-                        # scale the image and center it
-                        scale_x = 512 / im.width
-                        scale_y = 512 / im.height
-                        scale = int(np.minimum(scale_x, scale_y))
-
-                        # scale the image
-                        im = im.resize((im.width * scale, im.height * scale))
-
-                        # copy the image into a new 512x512 centered
-                        new_image = Image.new(mode='P', size=(512, 512))
-                        new_image.palette = copied_palette
-
-                        origin_x = int((512 - im.width) / 2)
-                        origin_y = int((512 - im.height) / 2)
-                        new_image.paste(im, (origin_x, origin_y))
-
-                        #im.show()
-                        new_image.save(out_image)
+                        im.palette = copied_palette
+                        im.save(out_image)
 
                         if export_offsets == True:
                             # save the offset in a separate .json file
                             out_json = os.path.join(output_path, f'{image_index}.json')
                             offset = offsets[i]
+
+                            # compensate for the VOFFSET
+                            if (flags & SMALL_SCENERY_FLAG_FULL_TILE) and (flags & SMALL_SCENERY_FLAG_VOFFSET_CENTRE):
+                                offset['y'] = offset['y'] - 12
+                            
                             json_string = json.dumps(offset)
                             with open(out_json, 'w') as f:
                                 f.write(json_string)

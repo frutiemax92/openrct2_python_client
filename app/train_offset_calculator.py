@@ -11,6 +11,7 @@ import torchvision
 from torch.utils.data import Dataset
 from tqdm import tqdm
 import json
+import numpy as np
 
 class ImageOffsetDataset(Dataset):
     def __init__(self, dataset_path : str, transform):
@@ -29,8 +30,24 @@ class ImageOffsetDataset(Dataset):
         image_path = os.path.join(self.dataset_path, f'{idx}.png')
         image = Image.open(image_path)
         
+        image_width, image_height = image.width, image.height
+        
+        # we need to scale the image so it takes the full 256x256 footprint
+        scale_x = 256 / image_width
+        scale_y = 256 / image_height
+        scale = int(np.minimum(scale_x, scale_y))
+
+        image = image.resize((scale * image_width, scale * image_height))
+        new_image = Image.new(image.mode, (256, 256))
+
+        left = int((256 - image.width) / 2)
+        right = left + image.width
+        top = int((256 - image.height) / 2)
+        bottom = top + image.height
+        new_image.paste(image, (left, top, right, bottom))
+
         #convert the image into a 256x256 grayscale
-        image = self.transform(image)
+        new_image = self.transform(new_image)
 
         offset_path = os.path.join(self.dataset_path, f'{idx}.json')
         f = open(offset_path)
@@ -38,7 +55,8 @@ class ImageOffsetDataset(Dataset):
         json_struct = json.loads(file_string)
 
         offset = torch.tensor([float(json_struct['x']), float(json_struct['y'])])
-        return image, offset
+        offset = offset * scale
+        return new_image, offset
 
 FOLDER_SYMBOL = '\U0001f4c2'
 
@@ -52,7 +70,6 @@ def train_offset_calculator(dataset_path : str, num_iterations : int, num_repeat
     transforms = v2.Compose([
         v2.ToImage(),
         v2.ToDtype(torch.float32, scale=True),
-        v2.Resize((256, 256), torchvision.transforms.InterpolationMode.NEAREST),
         v2.Grayscale()
     ])
 
