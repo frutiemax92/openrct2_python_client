@@ -192,8 +192,8 @@ def generate_object(image, post_image, image_size, object_name : str, object_des
         v2.Grayscale()
     ])
 
-    for x in range(2):
-        for y in range(2):
+    coords = [(0, 0), (1, 0), (1, 1), (0, 1)]
+    for x, y in coords:
             left = x * image_size / 2
             right = left + image_size / 2
             top = y * image_size / 2
