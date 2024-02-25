@@ -8,11 +8,16 @@ import urllib.request
 import numpy as np
 from PIL import Image
 from image_utils.fuzzy_flood import fuzzy_flood
+from torchvision.transforms import v2
+import torchvision
+import torchvision.transforms as T
 from PIL.ImageDraw import floodfill
 import json
 import gc
 import torch
 import shutil
+from app.common import OffsetCalculator
+import zipfile
 
 def check_for_lycoris():
     # assume that if there is a file there, it's good
@@ -73,7 +78,7 @@ def generate_image(prompt : str, negative_prompt : str, guidance : float, thresh
 
     return [out_image, post_process, 128, 'Nearest']
 
-def generate_json(object_description : str, author : str, object_type : str, object_name : str):
+def generate_json(object_description : str, author : str, object_type : str, object_name : str, offsets):
     json_dict = {}
     json_dict['id'] = object_name
     json_dict['authors'] = [author]
@@ -96,13 +101,15 @@ def generate_json(object_description : str, author : str, object_type : str, obj
     properties['requiresFlatSurface'] = False
     properties['isRotatable'] = True
     properties['isStackable'] = True
+    properties['SMALL_SCENERY_FLAG_VOFFSET_CENTRE'] = True
+    properties['hasNoSupports'] = True
 
     json_dict['properties'] = properties
     json_dict["images"] =  [
-        { "path": "images/0.png", "x": -23, "y": -42 },
-        { "path": "images/1.png", "x": -23, "y": -48 },
-        { "path": "images/2.png", "x": -22, "y": -48 },
-        { "path": "images/3.png", "x": -22, "y": -42 }
+        { "path": "images/0.png", "x": int(offsets[0][0]), "y": int(offsets[0][1]) },
+        { "path": "images/1.png", "x": int(offsets[1][0]), "y": int(offsets[1][1]) },
+        { "path": "images/2.png", "x": int(offsets[2][0]), "y": int(offsets[2][1]) },
+        { "path": "images/3.png", "x": int(offsets[3][0]), "y": int(offsets[3][1]) }
     ]
     name = {}
     name['en-GB'] = object_description
@@ -144,9 +151,11 @@ def post_process_image(image, image_size, threshold, resample_method : str):
                 image.putpixel((x, y), 0)
     return image
 
-def generate_object(image, image_size, object_name : str, object_description : str, author : str, object_type : str):
+def generate_object(image, post_image, image_size, object_name : str, object_description : str, author : str, object_type : str):
     # check for the next available object file that starts with the object name
+    post_image = Image.fromarray(post_image)
     image = Image.fromarray(image)
+
     files = os.listdir('outputs')
     files_with_name = [filename for filename in files if object_name in filename]
 
@@ -155,19 +164,34 @@ def generate_object(image, image_size, object_name : str, object_description : s
     detected = True
     while True:
         detected = False
-        output_folder = object_name + str(index)
+        output_folder_name = object_name + str(index)
         detected = False
         for filename in files_with_name:
-            if output_folder == filename:
+            if output_folder_name == filename:
                 detected = True
                 break
         if detected == False:
             break
         index = index + 1
-    output_folder = os.path.join('outputs', output_folder)
+    output_folder = os.path.join('outputs', output_folder_name)
 
     # cut the image into 4 images
     images = []
+    offsets = []
+
+    # load the offset calculator model
+    offset_model = OffsetCalculator()
+    offset_model_path = os.path.relpath('models/offset_calculator.pth')
+    offset_model.load_state_dict(torch.load(offset_model_path))
+    offset_model.eval()
+
+    transforms = v2.Compose([
+        v2.ToImage(),
+        v2.ToDtype(torch.float32, scale=True),
+        v2.Resize((256, 256), torchvision.transforms.InterpolationMode.NEAREST),
+        v2.Grayscale()
+    ])
+
     for x in range(2):
         for y in range(2):
             left = x * image_size / 2
@@ -175,12 +199,35 @@ def generate_object(image, image_size, object_name : str, object_description : s
             top = y * image_size / 2
             bottom = top + image_size / 2
 
-            view = image.crop((left, top, right, bottom))
-            images.append(view)
-    
+            view = post_image.crop((left, top, right, bottom))
+
+            # we need to cut only the pixels we want
+            bbox = view.getbbox()
+            view_cropped = view.crop(bbox)
+            images.append(view_cropped)
+
+            # generate an offset
+            # we must use the original image for this
+            left = x * 256
+            right = left + 256
+            top = y * 256
+            bottom = top + 256
+
+            #view = image.crop((left, top, right, bottom))
+
+            # transform the image into grayscale
+            grayscale = transforms(view)
+            grayscale = torch.reshape(grayscale, (1, 1, 256, 256))
+
+            #to_pil_image = T.ToPILImage()
+            #grayscale_image = to_pil_image(grayscale)
+            #grayscale_image.show()
+            offset = offset_model(grayscale)
+            offsets.append(offset[0])
+            
 
     # now that we have our images, we need to generate the object.json
-    json_dict = generate_json(object_description, author, object_type, object_name)
+    json_dict = generate_json(object_description, author, object_type, object_name, offsets)
 
     # create a folder
     os.mkdir(output_folder)
@@ -200,6 +247,18 @@ def generate_object(image, image_size, object_name : str, object_description : s
         file_path = os.path.join(images_folder, f'{i}.png')
         view.save(file_path)
     
+    # finally create a compressed version
+    zipfile_path = os.path.join(output_folder, f'{output_folder_name}.parkobj')
+    with zipfile.ZipFile(zipfile_path, 'w') as f:
+        # write the images in the images folder
+        for i in range(len(images)):
+            image_path = os.path.join(images_folder, f'{i}.png')
+            zip_path = os.path.relpath(f'images/{i}.png')
+            f.write(image_path, zip_path, compress_type=zipfile.ZIP_DEFLATED)
+        
+        # write the object.json
+        f.write(obj_json_path, 'object.json', compress_type=zipfile.ZIP_DEFLATED)
+
     print('Finished')
 
 def register_object_generation_block(client):
@@ -259,7 +318,7 @@ def register_object_generation_block(client):
 
     park_obj_button.click(
         generate_object,
-        inputs=[post_process_output, post_process_size, object_name, object_description, author, object_type]
+        inputs=[generation_output, post_process_output, post_process_size, object_name, object_description, author, object_type]
     )
 
     post_process_size.release(post_process_image, inputs=[generation_output, post_process_size, background_threshold, resample_method], \

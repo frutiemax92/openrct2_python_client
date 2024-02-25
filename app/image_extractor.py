@@ -2,7 +2,7 @@ from openrct2.client import OpenRCT2Client
 from openrct2.client import CommandTypes
 from openrct2.object import ObjectType
 import gradio as gr
-from app.common_gui import get_file_path
+from app.common import get_file_path
 from image_utils.rle_decoder import decode_image_rle
 
 from PIL import Image
