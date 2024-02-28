@@ -5,10 +5,14 @@ from openrct2.command_reader import *
 
 class OpenRCT2Client:
     def __init__(self):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket = None
 
     def connect(self, port=7860) -> int:
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         return self.socket.connect(('127.0.0.1', port))
+
+    def close(self):
+        self.socket.close()
     
     def read_all(self):
         res = bytearray()

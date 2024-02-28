@@ -248,28 +248,32 @@ def register_image_extractor_block(client : OpenRCT2Client):
         def extract_all_images(output_folder : str, exp_types, exp_recolour, pack_images_val, export_offsets):
             # try to connect
             error = client.connect(OPENRCT2_CLIENT_PORT)
-            if error != None:
-                print(f'Could not connect to OpenRCT2: the error code is {error}')
-                return
-            
-            image_index = 0
-            type_map = {
-                'Ride' : ObjectType.RIDE,
-                'Small Scenery' : ObjectType.SMALL_SCENERY,
-                'Large Scenery' : ObjectType.LARGE_SCENERY,
-                'Wall' : ObjectType.WALL,
-                'Banner' : ObjectType.BANNER,
-                'Footpath' : ObjectType.FOOTPATH,
-                'Footpath Addition' : ObjectType.FOOTPATH_ADDITION,
-                'Scenery Group' : ObjectType.SCENERY_GROUP,
-                'Park Entrance' : ObjectType.PARK_ENTRANCE,
-                'Water' : ObjectType.WATER,
-                'Terrain Surface' : ObjectType.TERRAIN_SURFACE,
-                'Footpath Railings' : ObjectType.FOOTPATH_RAILINGS
-            }
+            try:
+                if error != None:
+                    print(f'Could not connect to OpenRCT2: the error code is {error}')
+                    return
+                
+                image_index = 0
+                type_map = {
+                    'Ride' : ObjectType.RIDE,
+                    'Small Scenery' : ObjectType.SMALL_SCENERY,
+                    'Large Scenery' : ObjectType.LARGE_SCENERY,
+                    'Wall' : ObjectType.WALL,
+                    'Banner' : ObjectType.BANNER,
+                    'Footpath' : ObjectType.FOOTPATH,
+                    'Footpath Addition' : ObjectType.FOOTPATH_ADDITION,
+                    'Scenery Group' : ObjectType.SCENERY_GROUP,
+                    'Park Entrance' : ObjectType.PARK_ENTRANCE,
+                    'Water' : ObjectType.WATER,
+                    'Terrain Surface' : ObjectType.TERRAIN_SURFACE,
+                    'Footpath Railings' : ObjectType.FOOTPATH_RAILINGS
+                }
 
-            for type in exp_types:
-                image_index = extract_all_images_of_type(output_folder, type_map[type], exp_recolour, pack_images_val, export_offsets, image_index)
+                for type in exp_types:
+                    image_index = extract_all_images_of_type(output_folder, type_map[type], exp_recolour, pack_images_val, export_offsets, image_index)
+            except:
+                pass
+            client.close()
             print('Done extracting images')
 
         export_button.click(
