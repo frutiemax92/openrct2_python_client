@@ -36,6 +36,15 @@ def download_lycoris():
     #os.replace(local_filename, 'models/0p3nRCT2_v6.safetensors')
     shutil.move(local_filename, os.path.relpath('models/0p3nRCT2_v6.safetensors'))
 
+def get_model(path : str, url_path : str):
+    if os.path.exists(path):
+        return
+    #local_filename, headers = urllib.request.urlretrieve('https://huggingface.co/frutiemax/OpenRCT2ObjectGeneration/resolve/main/0p3nRCT2_v6.safetensors?download=true', \
+    local_filename, headers = urllib.request.urlretrieve(url_path, \
+        reporthook=download_progress)
+    shutil.move(local_filename, os.path.relpath(path))
+
+
 
 def progress_callback(pipe, step_index, timestep, callback_kwargs):
     return callback_kwargs
@@ -48,8 +57,7 @@ def generate_image(prompt : str, negative_prompt : str, guidance : float, thresh
     pipeline = StableDiffusionPipeline.from_single_file('https://huggingface.co/cyberdelia/CyberRealisticClassic/blob/main/CyberRealisticCLASSIC_V2.1_FP16.safetensors')
 
     # check for the OpenRCT2 lycoris model, if it isn't there, download it
-    if check_for_lycoris() == False:
-        download_lycoris()
+    get_model('models/0p3nRCT2_v6.safetensors', 'https://huggingface.co/frutiemax/OpenRCT2ObjectGeneration/resolve/main/0p3nRCT2_v6.safetensors?download=true')
 
     network, weights_sd = create_network_from_weights(1.0, 'models/0p3nRCT2_v6.safetensors', pipeline.vae, pipeline.text_encoder, pipeline.unet, for_inference=True)
     
@@ -180,6 +188,7 @@ def generate_object(image, post_image, image_size, object_name : str, object_des
     offsets = []
 
     # load the offset calculator model
+    get_model('models/offset_calculator.pth', 'https://huggingface.co/frutiemax/OpenRCT2ObjectGeneration/resolve/main/offset_calculator.pth?download=true')
     offset_model = OffsetCalculator()
     offset_model_path = os.path.relpath('models/offset_calculator.pth')
     offset_model.load_state_dict(torch.load(offset_model_path))
