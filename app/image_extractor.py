@@ -160,7 +160,7 @@ def register_image_extractor_block(client : OpenRCT2Client):
 
             return image_index
         
-        def extract_all_images_of_type(output_folder, type, exp_recolour, pack_images_val, export_offsets, start_image_index = 0) -> int:
+        def extract_all_images_of_type(output_folder, type, exp_recolour, pack_images_val, export_offsets, export_animated = False, start_image_index = 0) -> int:
             # first get the ride objects ids
             output_path = os.path.abspath(output_folder)
             command_result = client.send_command(CommandTypes.GET_NUM_OBJECTS, type)
@@ -197,7 +197,7 @@ def register_image_extractor_block(client : OpenRCT2Client):
 
                 # we still want the 4 views of the first frame of the animated object
                 images = read_images_result.images
-                if len(read_images_result.images) > 4 and export_animated_objects.value == False:
+                if len(read_images_result.images) > 4 and export_animated == False and type == 'Small Scenery':
                     images = images[:4]
                     offsets = offsets[:4]
 
@@ -270,7 +270,8 @@ def register_image_extractor_block(client : OpenRCT2Client):
                 }
 
                 for type in exp_types:
-                    image_index = extract_all_images_of_type(output_folder, type_map[type], exp_recolour, pack_images_val, export_offsets, image_index)
+                    image_index = extract_all_images_of_type(output_folder, type_map[type], exp_recolour, pack_images_val, export_offsets, export_animated_objects, \
+                                                             image_index)
             except:
                 pass
             client.close()
